@@ -1,0 +1,20 @@
+{
+  "algorithm": "SHA-256",
+  "candidate_id": 17,
+  "feature_count": 30,
+  "frozen_artifact_verification_passed": true,
+  "retraining_occurred": false,
+  "files": {
+    "models/random_forest.joblib": "2814ab16b74707f297c874003d2455afb02820452e035fb67648021b6fc8fbd3",
+    "config/v3_parameters.json": "2b474b627ca18bbb350c4506c910f34d623bd7ca3b376d5676f61e8c8fbbd1eb",
+    "config/inference_metadata.json": "6f07f7c5aa942872cc0e882575fd4406029fc6de0e20fc3094139f052a622294",
+    "src/smart_scheduler_v3.py": "091bc5425d2e3b980fc240ebf313f97eab5872ca545cb18f860f8fd358094b6a",
+    "src/feature_generator.py": "cc0aafe45687ce4e0571bd4dc945349f5470eae9b14cd545041a802ec9687e93",
+    "src/preprocessing.py": "40891e9347271fe3b473045c527c2b8ab33f46e4ab2eb7563bed7302d9ae5c47",
+    "src/inference_metrics.py": "50eb18a2f02b437124e611d3cc4c902ef6674e2af133f56134bf1c70f9a7ff81",
+    "run_v3.py": "f40dc2182f0c7fbc77e32641a0cba45c24280622591c8d4fb88b7053ba1d582a",
+    "requirements.txt": "4b1bff81ef61d387fb9b46c5a0856854c61899c3d87eca5c113e0d2e259454e8",
+    "README.md": "a9b4d53da1e3659e169412067381c81ff900c6fcb97ad75eeb84672b1f4bd490",
+    "verification_report.json": "ed9827f23e4e576208cd025ca9989879e8e7bb0a328d049933cd9a1ac7980153"
+  }
+}

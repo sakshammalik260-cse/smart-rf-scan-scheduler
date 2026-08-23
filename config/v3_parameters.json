@@ -1,0 +1,24 @@
+{
+  "scheduler_version": "smart_scheduler_v3_candidate_17_final",
+  "candidate_id": 17,
+  "parameters": {
+    "w_activity": 0.7,
+    "w_visit_staleness": 0.4,
+    "w_inverse_visits": 0.2,
+    "w_hit_staleness": 0.18,
+    "w_repetition": 0.1,
+    "w_uncertainty": 0.08,
+    "max_revisit_gap_s": 12.9,
+    "hit_staleness_scale_s": 4.3,
+    "repetition_window_scans": 8
+  },
+  "score_terms": {
+    "activity": "w_activity * random_forest_probability",
+    "visit_staleness": "w_visit_staleness * normalized_time_since_last_visit",
+    "inverse_visits": "w_inverse_visits / sqrt(number_of_visits + 1)",
+    "hit_staleness": "w_hit_staleness * normalized_time_since_last_hit",
+    "repetition": "-w_repetition * recent_band_scan_share",
+    "uncertainty": "w_uncertainty * (1 - 2 * abs(probability - 0.5))"
+  },
+  "selection_rule": "force selection among overdue bands; otherwise choose maximum normalized score"
+}

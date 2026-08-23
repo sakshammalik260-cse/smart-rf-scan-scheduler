@@ -1,0 +1,24 @@
+{
+  "verification_passed": true,
+  "verified_at_utc": "2026-08-23T12:20:44.489389+00:00",
+  "checks": {
+    "final_holdout_execution_complete": true,
+    "pre_evaluation_freeze_gate_passed": true,
+    "random_forest_hash_matches_all_frozen_records": true,
+    "scheduler_source_hash_matches_final_freeze_record": true,
+    "feature_generator_hash_matches_final_freeze_record": true,
+    "h5_preprocessing_is_exact_final_evaluation_dependency": true,
+    "candidate_number_matches": true,
+    "candidate_parameters_match": true,
+    "feature_order_matches": true,
+    "feature_count_is_30": true
+  },
+  "source_sha256": {
+    "random_forest": "2814ab16b74707f297c874003d2455afb02820452e035fb67648021b6fc8fbd3",
+    "smart_scheduler_v3": "091bc5425d2e3b980fc240ebf313f97eab5872ca545cb18f860f8fd358094b6a",
+    "feature_generator": "cc0aafe45687ce4e0571bd4dc945349f5470eae9b14cd545041a802ec9687e93",
+    "preprocessing": "40891e9347271fe3b473045c527c2b8ab33f46e4ab2eb7563bed7302d9ae5c47"
+  },
+  "provenance_note": "The original frozen manifest stored RF and parameter provenance. The final pre-evaluation freeze record additionally stored feature-generator and V3 source hashes. The H5 scenario loader did not have a hash field in those records; this package copies the exact import-path source whose timestamp predates the one-time final evaluation, and records its current SHA-256.",
+  "retraining_occurred": false
+}
