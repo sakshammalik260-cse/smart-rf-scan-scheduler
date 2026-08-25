@@ -1,0 +1,14 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MODEL_PATH = PROJECT_ROOT / "models" / "random_forest.joblib"
+INFERENCE_METADATA_PATH = PROJECT_ROOT / "config" / "inference_metadata.json"
+V3_PARAMETERS_PATH = PROJECT_ROOT / "config" / "v3_parameters.json"
+EXPECTED_MODEL_SHA256 = "2814ab16b74707f297c874003d2455afb02820452e035fb67648021b6fc8fbd3"
+ALLOWED_ORIGINS = ["http://localhost:5173"]
+MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024
+UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+RECEIVER_BAND_COUNT = 36
+RECEIVER_BANDWIDTH_MHZ = 500.0
+RECEIVER_LOW_MHZ = 0.0
+TIME_BIN_SECONDS = 0.05
