@@ -9,6 +9,10 @@ from app.schemas.model import ModelStatusResponse
 from app.schemas.scenario import ScenarioSummaryResponse, ScenarioUploadResponse
 from app.schemas.prediction import SchedulerDecisionResponse, SchedulerPredictRequest, SchedulerPredictResponse
 from app.schemas.simulation import SimulationStartRequest, SimulationStateResponse
+from app.schemas.sdr import CaptureRequest, SampleRateRequest, SDRModesResponse, SDRObservation, SDRStatus, TuneRequest
+from app.sdr import sdr_manager
+from app.schemas.sdr import SmartMockStartRequest, SmartMockStateResponse
+from app.services.sdr_inference_service import mock_smart_service
 from app.services.model_loader import model_loader
 from app.services.scenario_processing import build_scenario_summary
 from app.services.scenario_validator import ScenarioValidationError, discard_scenario, get_scenario_path, save_upload, validate_scenario_file
@@ -46,6 +50,76 @@ def model_status() -> ModelStatusResponse:
         model_sha256=state.model_sha256,
         error=state.error,
     )
+
+
+@app.get("/api/sdr/modes", response_model=SDRModesResponse)
+def sdr_modes() -> SDRModesResponse:
+    return SDRModesResponse(modes=sdr_manager.modes())
+
+
+@app.get("/api/sdr/status", response_model=SDRStatus)
+def sdr_status() -> SDRStatus:
+    return sdr_manager.status()
+
+
+@app.post("/api/sdr/connect", response_model=SDRStatus)
+def sdr_connect() -> SDRStatus:
+    return sdr_manager.connect()
+
+
+@app.post("/api/sdr/disconnect", response_model=SDRStatus)
+def sdr_disconnect() -> SDRStatus:
+    return sdr_manager.disconnect()
+
+
+@app.post("/api/sdr/sample-rate", response_model=SDRStatus)
+def sdr_sample_rate(request: SampleRateRequest) -> SDRStatus:
+    try:
+        return sdr_manager.set_sample_rate(request.sample_rate_hz)
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/sdr/tune", response_model=SDRStatus)
+def sdr_tune(request: TuneRequest) -> SDRStatus:
+    try:
+        return sdr_manager.tune(request.frequency_hz)
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/sdr/capture", response_model=SDRObservation)
+def sdr_capture(request: CaptureRequest) -> SDRObservation:
+    try:
+        return sdr_manager.capture(request.duration_s)
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/sdr/smart/start", response_model=SmartMockStateResponse)
+def sdr_smart_start(request: SmartMockStartRequest) -> SmartMockStateResponse:
+    try:
+        return mock_smart_service.start(request.scenario_duration_s)
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/sdr/smart/step", response_model=SmartMockStateResponse)
+def sdr_smart_step() -> SmartMockStateResponse:
+    try:
+        return mock_smart_service.step()
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/sdr/smart/reset", response_model=SmartMockStateResponse)
+def sdr_smart_reset() -> SmartMockStateResponse:
+    return mock_smart_service.reset()
+
+
+@app.get("/api/sdr/smart/status", response_model=SmartMockStateResponse)
+def sdr_smart_status() -> SmartMockStateResponse:
+    return mock_smart_service.state()
 
 
 @app.post("/api/scenarios/upload", response_model=ScenarioUploadResponse)

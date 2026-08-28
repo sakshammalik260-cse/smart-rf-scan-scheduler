@@ -14,6 +14,7 @@ const navigation = [
   { label: 'Smart Scheduler', page: 'scheduler' as const },
   { label: 'Model Comparison', page: 'comparison' as const },
   { label: 'Energy Efficiency', page: 'energy' as const },
+  { label: 'SDR Integration', page: 'sdr' as const },
 ]
 
 export function Sidebar({ activePage, onNavigate }: SidebarProps) {

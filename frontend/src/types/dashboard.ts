@@ -1,4 +1,4 @@
-export type PageId = 'overview' | 'spectrum' | 'scheduler' | 'comparison' | 'energy'
+export type PageId = 'overview' | 'spectrum' | 'scheduler' | 'comparison' | 'energy' | 'sdr'
 
 export type ModelResult = {
   name: string
