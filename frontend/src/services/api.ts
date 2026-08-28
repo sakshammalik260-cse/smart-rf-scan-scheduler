@@ -1,6 +1,7 @@
 import { runtimeConfig } from '../config/runtime'
 import { createModelApi } from './modelApi'
 import { createSimulationApi } from './simulationApi'
+import { createSdrApi } from './sdrApi'
 import type { ApiClient } from '../types/api'
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -28,5 +29,5 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
 }
 
 export const api: ApiClient = runtimeConfig.useMockApi
-  ? { ...createModelApi(true), ...createSimulationApi(true) }
-  : { ...createModelApi(false), ...createSimulationApi(false) }
+  ? { ...createModelApi(true), ...createSimulationApi(true), ...createSdrApi(true) }
+  : { ...createModelApi(false), ...createSimulationApi(false), ...createSdrApi(false) }

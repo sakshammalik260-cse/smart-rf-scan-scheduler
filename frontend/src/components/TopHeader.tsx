@@ -8,6 +8,7 @@ const pageCopy: Record<PageId, { title: string; subtitle: string }> = {
   scheduler: { title: 'Smart Scheduler', subtitle: 'How receiver history becomes RF probabilities and final V3 priorities.' },
   comparison: { title: 'Model Comparison', subtitle: 'Verified trade-offs across sequential, adaptive, RF V2, and Smart V3.' },
   energy: { title: 'Energy Efficiency', subtitle: 'Experimental resource-efficiency estimates for useful scan opportunities.' },
+  sdr: { title: 'SDR Integration', subtitle: 'Receive-only RF input boundary for TSRD replay, Mock SDR, and future hardware.' },
 }
 
 export function TopHeader({ activePage }: { activePage: PageId }) {

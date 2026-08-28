@@ -6,6 +6,7 @@ import { LiveSpectrumPage } from './pages/LiveSpectrumPage'
 import { SchedulerPage } from './pages/SchedulerPage'
 import { ModelComparisonPage } from './pages/ModelComparisonPage'
 import { EnergyEfficiencyPage } from './pages/EnergyEfficiencyPage'
+import { SdrIntegrationPage } from './pages/SdrIntegrationPage'
 import './App.css'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
     scheduler: <SchedulerPage />,
     comparison: <ModelComparisonPage />,
     energy: <EnergyEfficiencyPage />,
+    sdr: <SdrIntegrationPage />,
   }
 
   return (
