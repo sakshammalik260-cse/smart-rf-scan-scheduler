@@ -9,8 +9,22 @@ from app.schemas.model import ModelStatusResponse
 from app.schemas.scenario import ScenarioSummaryResponse, ScenarioUploadResponse
 from app.schemas.prediction import SchedulerDecisionResponse, SchedulerPredictRequest, SchedulerPredictResponse
 from app.schemas.simulation import SimulationStartRequest, SimulationStateResponse
-from app.schemas.sdr import CaptureRequest, SampleRateRequest, SDRModesResponse, SDRObservation, SDRStatus, TuneRequest
+from app.schemas.sdr import (
+    BandPlanResponse,
+    BandPlanValidationReport,
+    BandPlanValidationRequest,
+    CaptureRequest,
+    SDRCapabilitiesResponse,
+    SDRDevicesResponse,
+    SDRDriverErrorDetail,
+    SDRModesResponse,
+    SDRObservation,
+    SDRStatus,
+    SampleRateRequest,
+    TuneRequest,
+)
 from app.sdr import sdr_manager
+from app.sdr.errors import SDRDriverError
 from app.schemas.sdr import SmartMockStartRequest, SmartMockStateResponse
 from app.services.sdr_inference_service import mock_smart_service
 from app.services.model_loader import model_loader
@@ -28,6 +42,23 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Smart Scan Scheduler API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=config.ALLOWED_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+def _sdr_http_error(error: Exception) -> HTTPException:
+    if isinstance(error, SDRDriverError):
+        return HTTPException(status_code=422, detail=error.detail.model_dump())
+    message = str(error)
+    code = "CAPTURE_FAILED"
+    if "not connected" in message.lower():
+        code = "DEVICE_DISCONNECTED"
+    elif "frequency" in message.lower() and "outside" in message.lower():
+        code = "FREQUENCY_OUT_OF_RANGE"
+    elif "sample rate" in message.lower():
+        code = "SAMPLE_RATE_UNSUPPORTED"
+    elif "bandwidth" in message.lower():
+        code = "BANDWIDTH_UNSUPPORTED"
+    detail = SDRDriverErrorDetail(code=code, message=message)
+    return HTTPException(status_code=422, detail=detail.model_dump())
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -62,6 +93,26 @@ def sdr_status() -> SDRStatus:
     return sdr_manager.status()
 
 
+@app.get("/api/sdr/devices", response_model=SDRDevicesResponse)
+def sdr_devices() -> SDRDevicesResponse:
+    return SDRDevicesResponse(input_mode="mock_sdr", devices=sdr_manager.devices())
+
+
+@app.get("/api/sdr/capabilities", response_model=SDRCapabilitiesResponse)
+def sdr_capabilities() -> SDRCapabilitiesResponse:
+    return SDRCapabilitiesResponse(input_mode="mock_sdr", active_device_id="mock_sdr", capabilities=sdr_manager.capabilities())
+
+
+@app.get("/api/sdr/band-plan", response_model=BandPlanResponse)
+def sdr_band_plan() -> BandPlanResponse:
+    return sdr_manager.band_plan_response()
+
+
+@app.post("/api/sdr/band-plan/validate", response_model=BandPlanValidationReport)
+def sdr_validate_band_plan(request: BandPlanValidationRequest) -> BandPlanValidationReport:
+    return sdr_manager.validate_band_plan(request.device_id, request.bands, request.sample_rate_hz, request.bandwidth_hz)
+
+
 @app.post("/api/sdr/connect", response_model=SDRStatus)
 def sdr_connect() -> SDRStatus:
     return sdr_manager.connect()
@@ -76,24 +127,24 @@ def sdr_disconnect() -> SDRStatus:
 def sdr_sample_rate(request: SampleRateRequest) -> SDRStatus:
     try:
         return sdr_manager.set_sample_rate(request.sample_rate_hz)
-    except (RuntimeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (RuntimeError, ValueError, SDRDriverError) as error:
+        raise _sdr_http_error(error) from error
 
 
 @app.post("/api/sdr/tune", response_model=SDRStatus)
 def sdr_tune(request: TuneRequest) -> SDRStatus:
     try:
         return sdr_manager.tune(request.frequency_hz)
-    except (RuntimeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (RuntimeError, ValueError, SDRDriverError) as error:
+        raise _sdr_http_error(error) from error
 
 
 @app.post("/api/sdr/capture", response_model=SDRObservation)
 def sdr_capture(request: CaptureRequest) -> SDRObservation:
     try:
         return sdr_manager.capture(request.duration_s)
-    except (RuntimeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (RuntimeError, ValueError, SDRDriverError) as error:
+        raise _sdr_http_error(error) from error
 
 
 @app.post("/api/sdr/smart/start", response_model=SmartMockStateResponse)

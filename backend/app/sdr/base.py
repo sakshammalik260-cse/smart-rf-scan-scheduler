@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
 
-from app.schemas.sdr import SDRObservation, SDRStatus
+from app.schemas.sdr import DeviceCapabilities, SDRObservation, SDRStatus
 
 
 class SDRDevice(ABC):
+    @abstractmethod
+    def capabilities(self) -> DeviceCapabilities:
+        raise NotImplementedError
+
     @abstractmethod
     def status(self) -> SDRStatus:
         raise NotImplementedError
@@ -22,6 +26,10 @@ class SDRDevice(ABC):
 
     @abstractmethod
     def set_sample_rate(self, sample_rate_hz: float) -> SDRStatus:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_bandwidth(self, bandwidth_hz: float) -> SDRStatus:
         raise NotImplementedError
 
     @abstractmethod

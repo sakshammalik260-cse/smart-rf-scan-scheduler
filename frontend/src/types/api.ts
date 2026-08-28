@@ -1,4 +1,4 @@
-import type { SDRMode, SDRObservation, SDRStatus, SmartMockState } from './sdr'
+import type { HardwareReadiness, SDRMode, SDRObservation, SDRStatus, SmartMockState } from './sdr'
 
 export type SchedulerName = 'Sequential' | 'Adaptive V1' | 'RF V2' | 'Smart V3'
 export type SimulationSchedulerKey = 'sequential' | 'smart_v3'
@@ -124,6 +124,7 @@ export interface ApiClient {
   setSdrSampleRate(sampleRateHz: number): Promise<SDRStatus>
   tuneSdr(frequencyHz: number): Promise<SDRStatus>
   captureSdr(durationS: number): Promise<SDRObservation>
+  getSdrHardwareReadiness(): Promise<HardwareReadiness>
   startSmartMock(durationS?: number): Promise<SmartMockState>
   stepSmartMock(): Promise<SmartMockState>
   resetSmartMock(): Promise<SmartMockState>

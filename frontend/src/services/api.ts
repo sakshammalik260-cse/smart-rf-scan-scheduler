@@ -20,6 +20,7 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
     try {
       const body = await response.json()
       if (typeof body.detail === 'string') detail = body.detail
+      else if (body.detail && typeof body.detail.message === 'string') detail = body.detail.message
     } catch {
       // Keep the HTTP status fallback when the backend returns a non-JSON error.
     }
