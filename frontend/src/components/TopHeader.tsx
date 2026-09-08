@@ -1,4 +1,5 @@
-import { Radio } from 'lucide-react'
+import { ArrowLeft, Pause, Play, Radio } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import { runtimeConfig } from '../config/runtime'
 import type { PageId } from '../types/dashboard'
 
@@ -11,28 +12,41 @@ const pageCopy: Record<PageId, { title: string; subtitle: string }> = {
   sdr: { title: 'SDR Integration', subtitle: 'Receive-only RF input boundary for TSRD replay, Mock SDR, and future hardware.' },
 }
 
-export function TopHeader({ activePage }: { activePage: PageId }) {
+const SignalScene = lazy(() => import('./SignalScene').then((module) => ({ default: module.SignalScene })))
+
+export function TopHeader({ activePage, onNavigate, motionPaused, onToggleMotion }: {
+  activePage: PageId; onNavigate: (page: PageId) => void; motionPaused: boolean; onToggleMotion: () => void
+}) {
   const copy = pageCopy[activePage]
   const modeLabel = runtimeConfig.useMockApi ? 'MOCK API' : 'LIVE / REAL BACKEND'
   return (
-    <header className="border-b border-[#202126] bg-[#0d0e12]/95 px-5 py-5 sm:px-8 lg:px-10 xl:px-12">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <header className={`top-header-3d ${activePage === 'sdr' ? 'header-compact' : 'header-spatial'} border-b border-[#202126] bg-[#0d0e12]/95 px-5 py-5 sm:px-8 lg:px-10 xl:px-12`}>
+      <div className="header-tools">
+        {activePage !== 'overview' && <button className="header-back" onClick={() => onNavigate('overview')}><ArrowLeft size={16} />Back to Overview</button>}
+        <button className="motion-toggle" onClick={onToggleMotion} aria-label={motionPaused ? 'Resume animation' : 'Pause animation'} title={motionPaused ? 'Resume animation' : 'Pause animation'} aria-pressed={motionPaused}>
+          {motionPaused ? <Play size={16} /> : <Pause size={16} />}
+        </button>
+      </div>
+      <div className="header-copy flex flex-col gap-4">
         <div>
           <p className="section-kicker">Adaptive RF Spectrum Intelligence</p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-[#e6e1da]">{copy.title}</h1>
           <p className="mt-1 max-w-3xl text-sm text-[#89878a]">{copy.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="surface-card flex items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#c0bdb7]">
+          <div className="top-chip surface-card flex items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#c0bdb7]">
             <span className="status-dot" />
             {modeLabel}
           </div>
-          <div className="surface-card flex items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#89878a]">
+          <div className="top-chip surface-card flex items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#89878a]">
             <Radio size={14} className="text-[#d94a4a]" />
             Random Forest + Smart V3 <span className="text-[#e6e1da]">Candidate 17</span>
           </div>
         </div>
       </div>
+      {activePage !== 'sdr' && <div className="header-signal" role="img" aria-label="Animated 3D RF signal array">
+        <Suspense fallback={null}><SignalScene activePage={activePage} paused={motionPaused} onNavigate={onNavigate} /></Suspense>
+      </div>}
     </header>
   )
 }

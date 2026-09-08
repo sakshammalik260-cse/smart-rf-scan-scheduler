@@ -30,7 +30,7 @@ export function ModelComparisonPage() {
         {results.map((result) => {
           const smart = result.model === 'Smart V3'
           return (
-            <Panel className={`p-5 ${smart ? 'border-[#d94a4a] bg-[#2a1b1f]' : ''}`} key={result.model}>
+            <Panel className={`model-tower p-5 ${smart ? 'model-tower-active border-[#d94a4a] bg-[#2a1b1f]' : ''}`} key={result.model}>
               <div className="flex items-start justify-between gap-3">
                 <div><p className="muted-label">Strategy</p><h3 className="mt-2 font-display text-xl text-[#e6e1da]">{result.model}</h3></div>
                 {smart && <span className="bg-[#d94a4a] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-white">Candidate 17</span>}

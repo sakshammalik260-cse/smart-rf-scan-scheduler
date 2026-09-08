@@ -25,7 +25,7 @@ export function OverviewPage({ onStartLiveDemo }: OverviewPageProps) {
   const maxHit = Math.max(...modelResults.map((result) => result.hitRate))
   return (
     <div className="space-y-8">
-      <section className="surface-panel overflow-hidden">
+      <section className="overview-hero surface-panel overflow-hidden">
         <div className="grid gap-8 p-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-9">
           <div>
             <p className="section-kicker">Smart Scan Scheduler</p>
@@ -36,9 +36,15 @@ export function OverviewPage({ onStartLiveDemo }: OverviewPageProps) {
               <button className="secondary-cta" onClick={onStartLiveDemo}><Upload size={16} /> Upload TSRD Scenario</button>
             </div>
           </div>
-          <div className="metric-soft p-5">
+          <div className="overview-radar-panel metric-soft p-5">
             <p className="section-kicker">Final Holdout Performance</p>
             <p className="mt-2 text-xs text-[#89878a]">5 unseen TSRD Stare scenarios</p>
+            <div className="overview-orbit-visual" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <i />
+            </div>
             <div className="mt-6 space-y-4">
               {metrics.slice(0, 3).map((metric) => <div key={metric.label} className="flex items-end justify-between gap-4 border-b border-[#2d2e33] pb-3"><span className="text-sm text-[#89878a]">{metric.label}</span><span className="font-display text-2xl text-[#e6e1da]">{metric.value}</span></div>)}
             </div>

@@ -21,7 +21,7 @@ export function SchedulerPage() {
       <Panel className="p-5 sm:p-7">
         <div className="grid gap-3 lg:grid-cols-6">
           {flow.map((step, index) => (
-            <div className="surface-card p-4 text-center" key={step}>
+            <div className="flow-cube surface-card p-4 text-center" key={step}>
               <p className="font-mono text-[10px] text-[#d94a4a]">0{index + 1}</p>
               <p className="mt-3 min-h-10 text-sm text-[#e6e1da]">{step}</p>
               {index < flow.length - 1 && <ArrowDown className="mx-auto mt-3 text-[#514044] lg:hidden" size={15} />}
@@ -72,7 +72,7 @@ export function SchedulerPage() {
 
       <Panel className="p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-3">
-          {['Predict', 'Explore', 'Prioritize', 'Intercept'].map((step, index) => <div className="flex items-center gap-3" key={step}><span className="surface-card px-4 py-3 text-sm text-[#e6e1da]">{step}</span>{index < 3 && <ArrowRight size={15} className="text-[#514044]" />}</div>)}
+        {['Predict', 'Explore', 'Prioritize', 'Intercept'].map((step, index) => <div className="flex items-center gap-3" key={step}><span className="flow-chip surface-card px-4 py-3 text-sm text-[#e6e1da]">{step}</span>{index < 3 && <ArrowRight size={15} className="text-[#514044]" />}</div>)}
         </div>
       </Panel>
     </div>

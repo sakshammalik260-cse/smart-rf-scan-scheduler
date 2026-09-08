@@ -9,19 +9,27 @@ type DashboardLayoutProps = {
   children: ReactNode
   activePage: PageId
   onNavigate: (page: PageId) => void
+  motionPaused: boolean
+  onToggleMotion: () => void
 }
 
-export function DashboardLayout({ children, activePage, onNavigate }: DashboardLayoutProps) {
+export function DashboardLayout({ children, activePage, onNavigate, motionPaused, onToggleMotion }: DashboardLayoutProps) {
+  const immersive = activePage === 'sdr'
   return (
-    <main className="app-shell scan-grid">
+    <main className="app-shell scan-grid" data-motion={motionPaused ? 'paused' : 'running'}>
+      <div className="ambient-orbit" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="flex min-h-screen flex-col lg:flex-row">
         <Sidebar activePage={activePage} onNavigate={onNavigate} />
         <div className="min-w-0 flex-1">
-          <TopHeader activePage={activePage} />
-          <div className="mx-auto max-w-[1560px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10 xl:px-12">
-            <WorkflowSteps />
-            <ScenarioControl />
-            <div className="page-enter mt-7">
+          <TopHeader activePage={activePage} onNavigate={onNavigate} motionPaused={motionPaused} onToggleMotion={onToggleMotion} />
+          <div className={immersive ? 'mx-auto max-w-none px-3 py-4 sm:px-5 sm:py-5 lg:px-6 xl:px-7' : 'mx-auto max-w-[1560px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10 xl:px-12'}>
+            {!immersive && <WorkflowSteps />}
+            {!immersive && <ScenarioControl />}
+            <div key={activePage} className={immersive ? 'page-enter' : 'page-enter mt-7'}>
               {children}
             </div>
           </div>
