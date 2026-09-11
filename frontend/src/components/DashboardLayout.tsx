@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { TopHeader } from './TopHeader'
 import type { PageId } from '../types/dashboard'
-import { ScenarioControl } from './ScenarioControl'
 import { WorkflowSteps } from './WorkflowSteps'
 
 type DashboardLayoutProps = {
@@ -28,7 +27,6 @@ export function DashboardLayout({ children, activePage, onNavigate, motionPaused
           <TopHeader activePage={activePage} onNavigate={onNavigate} motionPaused={motionPaused} onToggleMotion={onToggleMotion} />
           <div className={immersive ? 'mx-auto max-w-none px-3 py-4 sm:px-5 sm:py-5 lg:px-6 xl:px-7' : 'mx-auto max-w-[1560px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10 xl:px-12'}>
             {!immersive && <WorkflowSteps />}
-            {!immersive && <ScenarioControl />}
             <div key={activePage} className={immersive ? 'page-enter' : 'page-enter mt-7'}>
               {children}
             </div>

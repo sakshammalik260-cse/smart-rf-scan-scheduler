@@ -5,7 +5,7 @@ import numpy as np
 
 from app import config
 from app.schemas.scenario import BandRange, ScenarioSummaryResponse, TimeBin
-from app.services.scenario_validator import EXPECTED_FEATURE_NAMES, ScenarioValidationError
+from app.services.scenario_validator import EXPECTED_FEATURE_NAMES, ScenarioValidationError, _normalize_labels
 
 
 def _decode(value: object) -> str:
@@ -31,11 +31,11 @@ def build_scenario_summary(path: Path, scenario_id: str) -> ScenarioSummaryRespo
             if missing:
                 raise ScenarioValidationError(f"Missing required H5 path(s): {', '.join(missing)}")
             data = handle["/data"]
-            labels = handle["/labels"]
+            labels = _normalize_labels(handle["/labels"])
             feature_names = [_decode(value) for value in handle["/metadata/feature_names"][()]]
             if feature_names != EXPECTED_FEATURE_NAMES:
                 raise ScenarioValidationError("Incompatible feature names in stored scenario")
-            if data.ndim != 2 or data.shape[0] == 0 or labels.ndim != 1 or labels.shape[0] != data.shape[0]:
+            if data.ndim != 2 or data.shape[0] == 0 or labels.shape[0] != data.shape[0]:
                 raise ScenarioValidationError("Scenario data and labels are empty, malformed, or mismatched")
             toa_index = feature_names.index("ToA")
             frequency_index = feature_names.index("Frequency")

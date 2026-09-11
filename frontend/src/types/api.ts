@@ -14,6 +14,7 @@ export interface ModelStatus {
 export interface UploadedTsrdScenario {
   id: string
   filename: string
+  sha256?: string
   sizeBytes: number
   status: 'selected' | 'ready' | 'processing' | 'complete' | 'error'
   selectedAt: string
@@ -27,6 +28,13 @@ export interface UploadedTsrdScenario {
   toaMinSeconds?: number
   toaMaxSeconds?: number
   validationMessages?: string[]
+  receiverPlan?: {
+    bandCount: number
+    bandwidthMHz: number
+    centresMHz: number[]
+    dwellTimesSeconds: number[]
+    source: string
+  }
 }
 
 export interface SimulationState {

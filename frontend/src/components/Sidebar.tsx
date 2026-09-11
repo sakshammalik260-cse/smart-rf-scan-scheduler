@@ -12,7 +12,7 @@ const navigation = [
   { label: 'Overview', page: 'overview' as const },
   { label: 'Live Spectrum', page: 'spectrum' as const },
   { label: 'Smart Scheduler', page: 'scheduler' as const },
-  { label: 'Model Comparison', page: 'comparison' as const },
+  { label: 'Reference Benchmark', page: 'comparison' as const },
   { label: 'Energy Efficiency', page: 'energy' as const },
   { label: 'SDR Integration', page: 'sdr' as const },
 ]

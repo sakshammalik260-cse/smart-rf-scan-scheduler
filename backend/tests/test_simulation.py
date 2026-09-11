@@ -174,3 +174,22 @@ def test_state_endpoint_returns_same_state_without_advancing() -> None:
         stepped = client.post(f"/api/simulation/{simulation_id}/step").json()
         state = client.get(f"/api/simulation/{simulation_id}/state").json()
     assert state == stepped
+
+
+def test_new_scenario_session_does_not_inherit_previous_session_state() -> None:
+    with TestClient(app) as client:
+        first_scenario_id = upload(client, prediction_bytes(750.0, 1), "config_1009.h5")
+        second_scenario_id = upload(client, prediction_bytes(17_750.0, 2), "config_1015.h5")
+        first_id = client.post("/api/simulation/start", json={"scenario_id": first_scenario_id}).json()["simulation_id"]
+        for _ in range(5):
+            client.post(f"/api/simulation/{first_id}/step")
+        second = client.post("/api/simulation/start", json={"scenario_id": second_scenario_id}).json()
+    assert second["simulation_id"] != first_id
+    assert second["scenario_id"] == second_scenario_id
+    assert second["decision_count"] == 0
+    assert second["scan_history"] == []
+    assert second["recent_decisions"] == []
+    assert second["selected_band"] is None
+    assert second["last_outcome"] is None
+    assert second["current_simulation_time_seconds"] == 0.0
+    assert sum(second["per_band_visit_counts"].values()) == 0

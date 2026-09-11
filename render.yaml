@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: smart-rf-scan-scheduler
+    runtime: docker
+    repo: https://github.com/sakshammalik260-cse/smart-rf-scan-scheduler
+    branch: smart-v4-sdr
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/ready
+    numInstances: 1
+    autoDeployTrigger: off

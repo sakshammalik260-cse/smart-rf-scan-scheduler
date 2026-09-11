@@ -1,0 +1,13 @@
+# Match the environment used to verify the frozen model and API.
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4
+python-multipart==0.0.32
+numpy==2.5.2
+pandas==2.3.3
+h5py==3.16.0
+scikit-learn==1.9.0
+scipy==1.18.1
+joblib==1.5.3
+threadpoolctl==3.6.0
+Pillow==12.3.0

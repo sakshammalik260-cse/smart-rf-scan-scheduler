@@ -6,11 +6,12 @@ let scenario: UploadedTsrdScenario | null = null
 let state: SimulationState = { status: 'idle', scenarioId: null, scheduler: 'Smart V3', elapsedSeconds: 0, progressPercent: 0, decisionNumber: 0, currentBand: null, scanHistory: [], recentDecisions: [], bandVisitCounts: {}, lastVisitTimesSeconds: {} }
 const mockSessions: Record<string, SimulationState> = {}
 
-export const bandScores: BandScore[] = spectrumBands.map((band) => ({ band: band.id, frequencyStartGHz: band.startGHz, frequencyEndGHz: band.endGHz, rfProbability: band.activity, explorationScore: ((band.id * 0.07) % 0.28) + 0.58, timeSinceVisitSeconds: band.visitedAt, priorityScore: band.priority, status: band.id === 17 ? 'selected' : 'candidate' }))
+const bandScores: BandScore[] = spectrumBands.map((band) => ({ band: band.id, frequencyStartGHz: band.startGHz, frequencyEndGHz: band.endGHz, rfProbability: band.activity, explorationScore: ((band.id * 0.07) % 0.28) + 0.58, timeSinceVisitSeconds: band.visitedAt, priorityScore: band.priority, status: band.id === 17 ? 'selected' : 'candidate' }))
 
 interface BackendScenarioUpload {
   scenario_id: string
   filename: string
+  sha256: string
   valid: boolean
   receiver_mode: string
   pulse_count: number
@@ -20,6 +21,14 @@ interface BackendScenarioUpload {
   toa_min: number
   toa_max: number
   file_size: number
+  duration_seconds: number
+  receiver_plan: {
+    band_count: number
+    bandwidth_mhz: number
+    centres_mhz: number[]
+    dwell_times_seconds: number[]
+    source: string
+  }
   validation_messages: string[]
 }
 
@@ -36,6 +45,8 @@ interface BackendScanHistoryItem {
   simulation_time_seconds: number
   dwell_duration_seconds: number
   band_id: number
+  frequency_start_mhz: number
+  frequency_end_mhz: number
   outcome: 'HIT' | 'MISS'
   pulse_count_observed: number
   rf_probability: number
@@ -79,7 +90,6 @@ function mapBand(band: BackendDecisionBand): SimulationBand {
 }
 
 function mapDecision(item: BackendScanHistoryItem): SimulationDecision {
-  const frequency = frequencyForBand(item.band_id)
   return {
     decisionNumber: item.decision_number,
     simulationTimeSeconds: item.simulation_time_seconds,
@@ -89,7 +99,8 @@ function mapDecision(item: BackendScanHistoryItem): SimulationDecision {
     pulseCountObserved: item.pulse_count_observed,
     rfProbability: item.rf_probability,
     v3Score: item.v3_score,
-    ...frequency,
+    frequencyStartMHz: item.frequency_start_mhz,
+    frequencyEndMHz: item.frequency_end_mhz,
   }
 }
 
@@ -127,6 +138,7 @@ function mapUpload(response: BackendScenarioUpload): UploadedTsrdScenario {
   return {
     id: response.scenario_id,
     filename: response.filename,
+    sha256: response.sha256,
     sizeBytes: response.file_size,
     status: response.valid ? 'ready' : 'error',
     selectedAt: new Date().toISOString(),
@@ -134,12 +146,19 @@ function mapUpload(response: BackendScenarioUpload): UploadedTsrdScenario {
     receiverMode: response.receiver_mode,
     pulseCount: response.pulse_count,
     emitterCount: response.unique_emitter_count,
-    durationSeconds: Math.max(0, (response.toa_max - response.toa_min) / 1_000_000),
+    durationSeconds: response.duration_seconds,
     frequencyMinMHz: response.frequency_min,
     frequencyMaxMHz: response.frequency_max,
     toaMinSeconds: response.toa_min / 1_000_000,
     toaMaxSeconds: response.toa_max / 1_000_000,
     validationMessages: response.validation_messages,
+    receiverPlan: {
+      bandCount: response.receiver_plan.band_count,
+      bandwidthMHz: response.receiver_plan.bandwidth_mhz,
+      centresMHz: response.receiver_plan.centres_mhz,
+      dwellTimesSeconds: response.receiver_plan.dwell_times_seconds,
+      source: response.receiver_plan.source,
+    },
   }
 }
 
@@ -194,7 +213,7 @@ export function createSimulationApi(mock: boolean): Pick<ApiClient, 'uploadScena
     stepSimulation: async (simulationId) => mapSimulationState(await request<BackendSimulationState>(`/simulation/${simulationId}/step`, { method: 'POST' })),
     pauseSimulation: async (simulationId) => mapSimulationState(await request<BackendSimulationState>(`/simulation/${simulationId}/pause`, { method: 'POST' })),
     resetSimulation: async (simulationId) => mapSimulationState(await request<BackendSimulationState>(`/simulation/${simulationId}/reset`, { method: 'POST' })),
-    getBandScores: async () => bandScores,
+    getBandScores: async () => [],
   }
   return {
     uploadScenario: async (file) => { scenario = { id: `mock-${Date.now()}`, filename: file.name, sizeBytes: file.size, status: 'ready', selectedAt: new Date().toISOString(), valid: true, receiverMode: 'Stare', pulseCount: 124820, emitterCount: 18, durationSeconds: 3, frequencyMinMHz: 500, frequencyMaxMHz: 18000, validationMessages: ['Mock H5 structure, feature names, and summary statistics validated'] }; return scenario },

@@ -159,6 +159,8 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
   const uploadButtonRef = useRef<HTMLButtonElement>(null)
   const resultsRef = useRef<HTMLElement>(null)
   const steppingRef = useRef(false)
+  const currentScenarioIdRef = useRef<string | null>(null)
+  const uploadGenerationRef = useRef(0)
   const [scenario, setScenario] = useState<UploadedTsrdScenario | null>(null)
   const [simulation, setSimulation] = useState<SimulationState>(EMPTY_SIMULATION)
   const [live, setLive] = useState(false)
@@ -174,6 +176,10 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
   const [updateFlash, setUpdateFlash] = useState(false)
   const [comparison, setComparison] = useState<ComparisonState>({ sequential: null, smart: null, running: false })
   const comparisonSteppingRef = useRef(false)
+  const currentScenarioId = scenario?.id ?? null
+  const currentScenarioFilename = scenario?.filename ?? null
+  const smartV3SessionId = simulation.simulationId ?? null
+  const sequentialSessionId = comparison.sequential?.simulationId ?? null
 
   const recentDecisions = simulation.recentDecisions ?? EMPTY_DECISIONS
   const selectedBand = simulation.selectedBand
@@ -195,7 +201,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
   const hitRateDiff = (smartStats.hitRate - sequentialStats.hitRate) * 100
   const missReduction = (sequentialStats.missRate - smartStats.missRate) * 100
   const coverageDiff = (smartStats.coverage - sequentialStats.coverage) * 100
-  const primarySmartState = simulation.decisionNumber > 0 ? simulation : comparison.smart
+  const primarySmartState = simulation
   const primarySmartStats = liveStats(primarySmartState)
   const primarySmartHistory = sessionHistory(primarySmartState)
   const primarySelectedBand = primarySmartState?.selectedBand ?? null
@@ -261,11 +267,15 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
 
   const stepOnce = useCallback(async () => {
     if (!simulation.simulationId || steppingRef.current) return
+    const simulationId = simulation.simulationId
+    const expectedScenarioId = currentScenarioIdRef.current
+    if (!expectedScenarioId || simulation.scenarioId !== expectedScenarioId) return
     steppingRef.current = true
     setFlowStage(0)
     setUpdateFlash(true)
     try {
-      const next = await api.stepSimulation(simulation.simulationId)
+      const next = await api.stepSimulation(simulationId)
+      if (currentScenarioIdRef.current !== expectedScenarioId || next.scenarioId !== expectedScenarioId || next.simulationId !== simulationId) return
       setSimulation(next)
       setError('')
       if (next.status === 'completed' || next.status === 'complete') {
@@ -278,7 +288,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       steppingRef.current = false
       window.setTimeout(() => setUpdateFlash(false), 520)
     }
-  }, [applyError, simulation.simulationId])
+  }, [applyError, simulation.scenarioId, simulation.simulationId])
 
   useEffect(() => {
     if (!live || simulation.status !== 'running') return
@@ -299,16 +309,22 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       applyError('Select a TSRD .h5 file.')
       return
     }
+    const uploadGeneration = ++uploadGenerationRef.current
+    currentScenarioIdRef.current = null
     setUploading(true)
     setLive(false)
+    setScenario(null)
+    setSimulation(EMPTY_SIMULATION)
+    setComparison({ sequential: null, smart: null, running: false })
+    window.localStorage.removeItem(RESOURCE_COMPARISON_STORAGE_KEY)
+    setFlowStage(0)
     setFeedback({ kind: 'info', message: 'Uploading scenario for validation...' })
     try {
       const uploaded = await api.uploadScenario(file)
+      if (uploadGenerationRef.current !== uploadGeneration) return
+      currentScenarioIdRef.current = uploaded.id
       setScenario(uploaded)
       setSimulation({ ...EMPTY_SIMULATION, scenarioId: uploaded.id })
-      setComparison({ sequential: null, smart: null, running: false })
-      window.localStorage.removeItem(RESOURCE_COMPARISON_STORAGE_KEY)
-      setFlowStage(0)
       setUploadHighlight(false)
       if (uploaded.valid === false) {
         applyError('Upload failure. Invalid TSRD .h5 scenario.')
@@ -329,10 +345,13 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       return
     }
     setStarting(true)
+    const expectedScenarioId = scenario.id
     setFeedback({ kind: 'info', message: 'Creating Smart V3 simulation session...' })
     try {
-      const started = await api.startSimulation(scenario.id, 'Smart V3')
+      const started = await api.startSimulation(expectedScenarioId, 'Smart V3')
+      if (currentScenarioIdRef.current !== expectedScenarioId || started.scenarioId !== expectedScenarioId) return
       const firstState = started.status === 'running' && started.simulationId ? await api.stepSimulation(started.simulationId) : started
+      if (currentScenarioIdRef.current !== expectedScenarioId || firstState.scenarioId !== expectedScenarioId || firstState.simulationId !== started.simulationId) return
       setSimulation(firstState)
       setLive(firstState.status === 'running')
       setSpeed(1)
@@ -349,9 +368,13 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
   const pause = async () => {
     setLive(false)
     if (!simulation.simulationId) return
+    const simulationId = simulation.simulationId
+    const expectedScenarioId = currentScenarioIdRef.current
     setPausing(true)
     try {
-      setSimulation(await api.pauseSimulation(simulation.simulationId))
+      const paused = await api.pauseSimulation(simulationId)
+      if (currentScenarioIdRef.current !== expectedScenarioId || paused.scenarioId !== expectedScenarioId || paused.simulationId !== simulationId) return
+      setSimulation(paused)
       setError('')
       setFeedback({ kind: 'info', message: 'Simulation paused.' })
     } catch (pauseError) {
@@ -370,8 +393,11 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       return
     }
     setResetting(true)
+    const simulationId = simulation.simulationId
+    const expectedScenarioId = currentScenarioIdRef.current
     try {
-      const resetState = await api.resetSimulation(simulation.simulationId)
+      const resetState = await api.resetSimulation(simulationId)
+      if (currentScenarioIdRef.current !== expectedScenarioId || resetState.scenarioId !== expectedScenarioId || resetState.simulationId !== simulationId) return
       setSimulation({ ...resetState, status: 'idle' })
       setFlowStage(0)
       setError('')
@@ -389,12 +415,15 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       return
     }
     window.localStorage.removeItem(RESOURCE_COMPARISON_STORAGE_KEY)
+    const expectedScenarioId = scenario.id
     setFeedback({ kind: 'info', message: 'Starting Sequential vs Smart V3 comparison...' })
     try {
       const [sequential, smart] = await Promise.all([
-        api.startSimulation(scenario.id, 'sequential'),
-        api.startSimulation(scenario.id, 'smart_v3'),
+        api.startSimulation(expectedScenarioId, 'sequential'),
+        api.startSimulation(expectedScenarioId, 'smart_v3'),
       ])
+      if (currentScenarioIdRef.current !== expectedScenarioId || sequential.scenarioId !== expectedScenarioId || smart.scenarioId !== expectedScenarioId) return
+      if (!sequential.simulationId || !smart.simulationId || sequential.simulationId === smart.simulationId) throw new Error('Backend did not create independent comparison sessions.')
       setComparison({ sequential, smart, running: true })
       setError('')
       setFeedback({ kind: 'success', message: 'Comparison started on the uploaded scenario.' })
@@ -406,6 +435,11 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
   const stepComparison = useCallback(async () => {
     if (!comparison.sequential?.simulationId || !comparison.smart?.simulationId || comparisonSteppingRef.current) return
     comparisonSteppingRef.current = true
+    const expectedScenarioId = currentScenarioIdRef.current
+    if (!expectedScenarioId || comparison.sequential.scenarioId !== expectedScenarioId || comparison.smart.scenarioId !== expectedScenarioId) {
+      comparisonSteppingRef.current = false
+      return
+    }
     try {
       const stepIfRunning = (state: SimulationState) => state.status === 'completed' || state.status === 'complete'
         ? Promise.resolve(state)
@@ -414,6 +448,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
         stepIfRunning(comparison.sequential),
         stepIfRunning(comparison.smart),
       ])
+      if (currentScenarioIdRef.current !== expectedScenarioId || sequential.scenarioId !== expectedScenarioId || smart.scenarioId !== expectedScenarioId) return
       setComparison((current) => ({ ...current, sequential, smart, running: sequential.status === 'running' || smart.status === 'running' }))
       setError('')
       if (sequential.status === 'completed' || sequential.status === 'complete' || smart.status === 'completed' || smart.status === 'complete') {
@@ -484,7 +519,9 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
     const isSelected = selectedBandId === bandId
     const visitIntensity = visitCount / maxVisits
     const visualIntensity = Math.max(0.08, Math.min(1, Math.max(rfProbability, visitIntensity)))
-    return { bandId, visitCount, recentOutcome, rfProbability, v3Score, isSelected, visualIntensity }
+    const centreMHz = scenario?.receiverPlan?.centresMHz[bandId] ?? bandId * 500 + 250
+    const bandwidthMHz = scenario?.receiverPlan?.bandwidthMHz ?? 500
+    return { bandId, frequencyStartMHz: centreMHz - bandwidthMHz / 2, frequencyEndMHz: centreMHz + bandwidthMHz / 2, visitCount, recentOutcome, rfProbability, v3Score, isSelected, visualIntensity }
   })
 
   return (
@@ -506,7 +543,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button ref={uploadButtonRef} onClick={() => inputRef.current?.click()} disabled={uploading} className={`flex items-center gap-2 border border-[#416b62] bg-[#102326] px-3 py-2 text-xs text-[#d5e9e4] transition-colors hover:border-[#67e8c5] hover:bg-[#153b39] disabled:cursor-not-allowed disabled:opacity-50 ${uploadHighlight ? 'demo-upload-highlight' : ''}`}><Upload size={15} /> {uploading ? 'Validating...' : 'Upload Stare H5'}</button>
               <input ref={inputRef} type="file" accept=".h5" className="hidden" onChange={(event) => void chooseFile(event.target.files?.[0])} />
-              <span className="text-xs text-[#9db8b2]">{scenario ? scenario.filename : 'No scenario loaded'}</span>
+              <span className="text-xs text-[#9db8b2]">{currentScenarioFilename ?? 'No scenario loaded'}</span>
               {scenario?.valid && <span className="flex items-center gap-1 border border-[#416b62] px-2 py-1 font-mono text-[9px] uppercase text-[#67e8c5]"><CheckCircle2 size={12} /> Scenario Validated ✓</span>}
             </div>
           </div>
@@ -531,7 +568,8 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
             <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">Duration</span><span className="text-[#d5e9e4]">{formatSeconds(scenario.durationSeconds)}</span></div>
             <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">Receiver mode</span><span className="text-[#d5e9e4]">{scenario.receiverMode ?? 'Stare'}</span></div>
             <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">Frequency</span><span className="text-[#d5e9e4]">{formatMHzRange(scenario.frequencyMinMHz, scenario.frequencyMaxMHz)}</span></div>
-            <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">Scenario ID</span><span className="font-mono text-[10px] text-[#d5e9e4]">{scenario.id.slice(0, 12)}</span></div>
+            <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">Scenario ID</span><span className="font-mono text-[10px] text-[#d5e9e4]">{currentScenarioId?.slice(0, 12)}</span></div>
+            <div className="border border-[#2d2e33] bg-[#111317] px-3 py-2"><span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]">SHA-256</span><span title={scenario.sha256} className="font-mono text-[10px] text-[#d5e9e4]">{scenario.sha256?.slice(0, 12) ?? '-'}</span></div>
           </div> : <div className="border border-[#2d2e33] bg-[#111317] px-4 py-4 text-sm text-[#89878a]">Upload and validate a TSRD .h5 scenario first.</div>}
           <div className="surface-card p-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#d94a4a]">How to Run Demo</p>
@@ -544,7 +582,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
           <div>
             <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-[#668681]">
               <span>Status: <span className={statusTone(simulation.status)}>{simulation.status}</span></span>
-              <span>{formatSeconds(simulation.elapsedSeconds)} / {simulation.decisionNumber} decisions</span>
+              <span>{smartV3SessionId ? `Session ${smartV3SessionId.slice(0, 12)} / ` : ''}{formatSeconds(simulation.elapsedSeconds)} / {simulation.decisionNumber} decisions</span>
             </div>
             <div className="h-2 overflow-hidden border border-[#514044] bg-[#17191d]"><div className="h-full bg-[#d94a4a] transition-all duration-500" style={{ width: `${simulation.progressPercent ?? 0}%` }} /></div>
           </div>
@@ -566,7 +604,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
       <Panel className={`overflow-hidden ${updateFlash ? 'decision-update-flash' : ''}`}>
         <div className="border-b border-[#29423f] px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#67e8c5]">RF spectrum - 36 bands across 0-18 GHz</p><p className="mt-1 text-xs text-[#74938d]">Height shows RF probability or visit intensity. Red is selected, bright red is recent HIT, charcoal is recent MISS.</p></div>
+            <div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#67e8c5]">RF spectrum - {scenario?.receiverPlan?.bandCount ?? 36} bands / {formatMHzRange(spectrumBands[0].frequencyStartMHz, spectrumBands[spectrumBands.length - 1].frequencyEndMHz)}</p><p className="mt-1 text-xs text-[#74938d]">Height shows RF probability or visit intensity. Red is selected, bright red is recent HIT, charcoal is recent MISS.</p></div>
             <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.12em] text-[#668681]"><span className="h-3 w-3 bg-[#d94a4a]" /> selected <span className="h-3 w-3 bg-[#b83b3b]" /> hit <span className="h-3 w-3 bg-[#34363d]" /> miss</div>
           </div>
         </div>
@@ -577,7 +615,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
                 <div key={band.bandId} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                   <div className="flex h-28 w-full items-end border-x border-[#202126] bg-[#111317]">
                     <div
-                      title={`Band ${band.bandId}: ${formatMHzRange(band.bandId * 500, (band.bandId + 1) * 500)} / RF ${percent(band.rfProbability)} / V3 ${band.v3Score.toFixed(3)} / visits ${band.visitCount}`}
+                      title={`Band ${band.bandId}: ${formatMHzRange(band.frequencyStartMHz, band.frequencyEndMHz)} / RF ${percent(band.rfProbability)} / V3 ${band.v3Score.toFixed(3)} / visits ${band.visitCount}`}
                       className={`spectrum-bar w-full ${band.isSelected ? 'spectrum-bar-selected' : band.recentOutcome === 'HIT' ? 'spectrum-bar-hit' : band.recentOutcome === 'MISS' ? 'spectrum-bar-miss' : 'spectrum-bar-idle'} ${band.isSelected && latestDecision?.outcome === 'HIT' ? 'hit-pulse-flash' : ''}`}
                       style={{ height: `${18 + band.visualIntensity * 82}%`, opacity: 0.55 + band.visualIntensity * 0.45 }}
                     />
@@ -586,7 +624,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-[#668681]"><span>0 GHz</span><span>6 GHz</span><span>12 GHz</span><span>18 GHz</span></div>
+            <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-[#668681]"><span>{(spectrumBands[0].frequencyStartMHz / 1000).toFixed(1)} GHz</span><span>{(((spectrumBands[0].frequencyStartMHz + spectrumBands[spectrumBands.length - 1].frequencyEndMHz) / 2) / 1000).toFixed(1)} GHz</span><span>{(spectrumBands[spectrumBands.length - 1].frequencyEndMHz / 1000).toFixed(1)} GHz</span></div>
           </div>
         </div>
       </Panel>
@@ -597,6 +635,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#67e8c5]">Compare schedulers</p>
               <p className="mt-1 text-xs text-[#74938d]">Sequential and Smart V3 run as independent sessions on the same uploaded scenario.</p>
+              {sequentialSessionId && <p className="mt-1 font-mono text-[9px] text-[#668681]">Sequential session {sequentialSessionId.slice(0, 12)}</p>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button disabled={!scenario || comparison.running} onClick={() => void startComparison()} className="flex items-center gap-2 border border-[#4ab99e] bg-[#153b39] px-3 py-2 text-xs text-[#67e8c5] hover:bg-[#1b4944] disabled:cursor-not-allowed disabled:opacity-40"><Play size={14} /> Start Comparison</button>
@@ -682,12 +721,12 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
                 ['Emitter detections', 'Not available'],
                 ['Average time between HITs', valueOrUnavailable(smartAverageHitGap, (value) => `${value.toFixed(3)}s`)],
               ].map(([label, value]) => <div key={label} className="surface-card p-4"><p className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#89878a]">{label}</p><p className="mt-2 font-display text-xl text-[#e6e1da]">{value}</p></div>)}
-            </div> : <div className="p-5 text-sm text-[#89878a]">Run Smart V3 to generate scenario results.</div>}
+            </div> : <div className="p-5 text-sm text-[#89878a]">No simulation run for this scenario yet.</div>}
           </Panel>
 
           <Panel>
             <div className="border-b border-[#29423f] px-5 py-4">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#d94a4a]">FINAL HOLDOUT BENCHMARK</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#d94a4a]">REFERENCE HOLDOUT BENCHMARK</p>
               <p className="mt-1 text-xs text-[#74938d]">Pre-evaluated final HOLDOUT benchmark - not calculated from the uploaded scenario.</p>
             </div>
             <div className="space-y-4 p-5">
@@ -844,7 +883,7 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
         </Panel>
 
         <Panel>
-          <div className="border-b border-[#29423f] px-5 py-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#67e8c5]">Live comparison</p></div>
+          <div className="border-b border-[#29423f] px-5 py-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#d94a4a]">REFERENCE HOLDOUT BENCHMARK</p></div>
           <div className="space-y-4 p-5">
             <p className="text-xs text-[#74938d]">Final HOLDOUT benchmark - not live scenario metrics.</p>
             <div className="border border-[#2d2e33] bg-[#111317] p-4">
@@ -872,9 +911,9 @@ export function LiveSpectrumPage({ demoRequest = 0 }: LiveSpectrumPageProps) {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-xs">
-              <thead className="border-b border-[#243c3a] font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]"><tr>{['Decision', 'Time', 'Band', 'Frequency', 'RF Probability', 'V3 Score', 'HIT/MISS'].map((header) => <th key={header} className="px-4 py-3 font-normal">{header}</th>)}</tr></thead>
+              <thead className="border-b border-[#243c3a] font-mono text-[9px] uppercase tracking-[0.14em] text-[#668681]"><tr>{['Decision', 'Time', 'Band', 'Frequency', 'Pulse count', 'RF Probability', 'V3 Score', 'HIT/MISS'].map((header) => <th key={header} className="px-4 py-3 font-normal">{header}</th>)}</tr></thead>
               <tbody className="divide-y divide-[#243c3a]">
-                {recentDecisions.length ? recentDecisions.slice().reverse().map((decision) => <tr key={`${decision.decisionNumber}-${decision.bandId}`} className="decision-row"><td className="px-4 py-3 font-mono text-[#d5e9e4]">#{decision.decisionNumber}</td><td className="px-4 py-3 font-mono text-[#9db8b2]">{formatSeconds(decision.simulationTimeSeconds)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">B{decision.bandId.toString().padStart(2, '0')}</td><td className="px-4 py-3 text-[#9db8b2]">{formatMHzRange(decision.frequencyStartMHz, decision.frequencyEndMHz)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">{percent(decision.rfProbability)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">{decision.v3Score.toFixed(4)}</td><td className="px-4 py-3"><span className={`outcome-pill ${decision.outcome === 'HIT' ? 'outcome-hit' : 'outcome-miss'}`}>{decision.outcome}</span></td></tr>) : <tr><td colSpan={7} className="px-5 py-6 text-center text-[#74938d]">No live decisions recorded.</td></tr>}
+                {recentDecisions.length ? recentDecisions.slice().reverse().map((decision) => <tr key={`${decision.decisionNumber}-${decision.bandId}`} className="decision-row"><td className="px-4 py-3 font-mono text-[#d5e9e4]">#{decision.decisionNumber}</td><td className="px-4 py-3 font-mono text-[#9db8b2]">{formatSeconds(decision.simulationTimeSeconds)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">B{decision.bandId.toString().padStart(2, '0')}</td><td className="px-4 py-3 text-[#9db8b2]">{formatMHzRange(decision.frequencyStartMHz, decision.frequencyEndMHz)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">{decision.pulseCountObserved}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">{percent(decision.rfProbability)}</td><td className="px-4 py-3 font-mono text-[#d5e9e4]">{decision.v3Score.toFixed(4)}</td><td className="px-4 py-3"><span className={`outcome-pill ${decision.outcome === 'HIT' ? 'outcome-hit' : 'outcome-miss'}`}>{decision.outcome}</span></td></tr>) : <tr><td colSpan={8} className="px-5 py-6 text-center text-[#74938d]">No live decisions recorded.</td></tr>}
               </tbody>
             </table>
           </div>

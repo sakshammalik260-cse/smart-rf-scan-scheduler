@@ -32,6 +32,7 @@ from app.services.scenario_processing import build_scenario_summary
 from app.services.scenario_validator import ScenarioValidationError, discard_scenario, get_scenario_path, save_upload, validate_scenario_file
 from app.services.inference_service import predict_scenario, predict_scheduler_decision
 from app.services.simulation_service import get_session, pause_simulation, reset_simulation, start_simulation
+from app.web import mount_frontend
 
 
 @asynccontextmanager
@@ -81,6 +82,14 @@ def model_status() -> ModelStatusResponse:
         model_sha256=state.model_sha256,
         error=state.error,
     )
+
+
+@app.get("/api/ready", response_model=HealthResponse)
+def readiness() -> HealthResponse:
+    state = model_loader.state
+    if not state.loaded or state.verification_status != "verified":
+        raise HTTPException(status_code=503, detail="Frozen model is not ready")
+    return HealthResponse(status="ok", service="smart-scheduler-backend", model_loaded=True)
 
 
 @app.get("/api/sdr/modes", response_model=SDRModesResponse)
@@ -261,3 +270,6 @@ def simulation_state(simulation_id: str) -> SimulationStateResponse:
         return get_session(simulation_id).state_response()
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+mount_frontend(app, config.PROJECT_ROOT / "frontend" / "dist")

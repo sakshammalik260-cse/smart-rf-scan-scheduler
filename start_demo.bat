@@ -11,6 +11,12 @@ set "BACKEND_RUNNER=%RUNTIME_DIR%\backend_demo.cmd"
 set "FRONTEND_RUNNER=%RUNTIME_DIR%\frontend_demo.cmd"
 set "BACKEND_PID_FILE=%RUNTIME_DIR%\backend.pid"
 set "FRONTEND_PID_FILE=%RUNTIME_DIR%\frontend.pid"
+set "BACKEND_LAUNCHER_PID_FILE=%RUNTIME_DIR%\backend_launcher.pid"
+set "FRONTEND_LAUNCHER_PID_FILE=%RUNTIME_DIR%\frontend_launcher.pid"
+set "BACKEND_PID="
+set "FRONTEND_PID="
+set "BACKEND_LAUNCHER_PID="
+set "FRONTEND_LAUNCHER_PID="
 
 echo ========================================
 echo SMART SCAN SCHEDULER V3
@@ -78,6 +84,8 @@ if errorlevel 1 exit /b 1
 if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%" >nul 2>nul
 del "%BACKEND_PID_FILE%" >nul 2>nul
 del "%FRONTEND_PID_FILE%" >nul 2>nul
+del "%BACKEND_LAUNCHER_PID_FILE%" >nul 2>nul
+del "%FRONTEND_LAUNCHER_PID_FILE%" >nul 2>nul
 
 call :WriteBackendRunner
 call :WriteFrontendRunner
@@ -86,40 +94,47 @@ echo Environment OK.
 echo.
 echo [2/4] Starting FastAPI backend...
 set "SMART_DEMO_BACKEND_RUNNER=%BACKEND_RUNNER%"
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/k', ('\"' + $env:SMART_DEMO_BACKEND_RUNNER + '\"')) -PassThru; $p.Id"') do set "BACKEND_PID=%%P"
-if not defined BACKEND_PID (
+for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/k', ('"' + $env:SMART_DEMO_BACKEND_RUNNER + '"')) -PassThru; $p.Id"') do set "BACKEND_LAUNCHER_PID=%%P"
+if not defined BACKEND_LAUNCHER_PID (
     call :Fail "Could not start the backend terminal window."
     exit /b 1
 )
-> "%BACKEND_PID_FILE%" echo %BACKEND_PID%
+> "%BACKEND_LAUNCHER_PID_FILE%" echo %BACKEND_LAUNCHER_PID%
 
 call :WaitForUrl "%BACKEND_HEALTH%" "FastAPI backend" 60
 if errorlevel 1 (
+    call "%ROOT%\stop_demo.bat"
     echo Backend did not become healthy in time. Check the SMART V3 Backend window for details.
-    echo You can clean up with stop_demo.bat.
     exit /b 1
 )
-call :SaveListenerPid 8000 "%BACKEND_PID_FILE%" "FastAPI backend"
-if errorlevel 1 exit /b 1
+call :SaveListenerPid 8000 "%BACKEND_PID_FILE%" "FastAPI backend" "%BACKEND_LAUNCHER_PID%" backend
+if errorlevel 1 (
+    call "%ROOT%\stop_demo.bat"
+    exit /b 1
+)
 
 echo.
 echo [3/4] Starting React frontend...
 set "SMART_DEMO_FRONTEND_RUNNER=%FRONTEND_RUNNER%"
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/k', ('\"' + $env:SMART_DEMO_FRONTEND_RUNNER + '\"')) -PassThru; $p.Id"') do set "FRONTEND_PID=%%P"
-if not defined FRONTEND_PID (
+for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/k', ('"' + $env:SMART_DEMO_FRONTEND_RUNNER + '"')) -PassThru; $p.Id"') do set "FRONTEND_LAUNCHER_PID=%%P"
+if not defined FRONTEND_LAUNCHER_PID (
+    call "%ROOT%\stop_demo.bat"
     call :Fail "Could not start the frontend terminal window."
     exit /b 1
 )
-> "%FRONTEND_PID_FILE%" echo %FRONTEND_PID%
+> "%FRONTEND_LAUNCHER_PID_FILE%" echo %FRONTEND_LAUNCHER_PID%
 
 call :WaitForUrl "%FRONTEND_URL%" "React frontend" 60
 if errorlevel 1 (
+    call "%ROOT%\stop_demo.bat"
     echo Frontend did not become ready in time. Check the SMART V3 Frontend window for details.
-    echo You can clean up with stop_demo.bat.
     exit /b 1
 )
-call :SaveListenerPid 5173 "%FRONTEND_PID_FILE%" "React frontend"
-if errorlevel 1 exit /b 1
+call :SaveListenerPid 5173 "%FRONTEND_PID_FILE%" "React frontend" "%FRONTEND_LAUNCHER_PID%" frontend
+if errorlevel 1 (
+    call "%ROOT%\stop_demo.bat"
+    exit /b 1
+)
 
 echo.
 echo [4/4] Opening dashboard...
@@ -151,12 +166,18 @@ exit /b 0
 
 :SaveListenerPid
 set "LISTENER_PID="
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%~1 .*LISTENING"') do set "LISTENER_PID=%%P"
+set "SMART_DEMO_PORT=%~1"
+set "SMART_DEMO_ROOT=%ROOT%"
+set "SMART_DEMO_LAUNCHER_PID=%~4"
+set "SMART_DEMO_KIND=%~5"
+for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = [int]$env:SMART_DEMO_PORT; $launcherPid = [int]$env:SMART_DEMO_LAUNCHER_PID; $root = [IO.Path]::GetFullPath($env:SMART_DEMO_ROOT); $connections = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue); if ($connections.Count -eq 0) { exit 1 }; $ownerPid = [int]$connections[0].OwningProcess; $process = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $ownerPid) -ErrorAction SilentlyContinue; if (-not $process) { exit 1 }; $command = [string]$process.CommandLine; $expectedPath = Join-Path $root '.venv\Scripts\python.exe'; if ($env:SMART_DEMO_KIND -eq 'backend') { $expected = ([string]$process.Name -ieq 'python.exe') -and ($command -match '(?i)uvicorn\s+app\.main:app') -and ($command -match '(?i)--app-dir\s+backend') -and ($command -match '(?i)--port\s+8000') } else { $frontendRoot = Join-Path $root 'frontend'; $expected = ([string]$process.Name -ieq 'node.exe') -and ($command.IndexOf($frontendRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) -and ($command -match '(?i)vite') -and ($command -match '(?i)--port\s+5173') }; $descendant = $false; $venvAncestor = $env:SMART_DEMO_KIND -ne 'backend'; $current = $process; for ($i = 0; $i -lt 12 -and $current; $i++) { if ([string]$current.ExecutablePath -ieq $expectedPath) { $venvAncestor = $true }; if ([int]$current.ProcessId -eq $launcherPid) { $descendant = $true; break }; if ([int]$current.ParentProcessId -le 0) { break }; $current = Get-CimInstance Win32_Process -Filter ('ProcessId=' + [int]$current.ParentProcessId) -ErrorAction SilentlyContinue }; if ($expected -and $descendant -and $venvAncestor) { $ownerPid } else { exit 1 }"') do set "LISTENER_PID=%%P"
 if not defined LISTENER_PID (
-    echo ERROR: Could not identify the %~3 listener PID on port %~1.
+    echo ERROR: Could not validate the %~3 listener on port %~1 as a child of launcher PID %~4.
     exit /b 1
 )
 > "%~2" echo %LISTENER_PID%
+if /i "%~5"=="backend" set "BACKEND_PID=%LISTENER_PID%"
+if /i "%~5"=="frontend" set "FRONTEND_PID=%LISTENER_PID%"
 echo Tracking %~3 listener PID %LISTENER_PID%.
 exit /b 0
 

@@ -1,7 +1,4 @@
 import { HOLDOUT_LABEL, modelResults } from '../data/mockData'
-import { api } from '../services/api'
-import { useEffect, useState } from 'react'
-import type { ModelComparisonResult } from '../types/api'
 import { Panel } from '../components/Panel'
 import { SectionHeader } from '../components/SectionHeader'
 
@@ -18,12 +15,11 @@ function Bar({ label, value, max = 100, lowerIsBetter = false, unit = '%' }: { l
 }
 
 export function ModelComparisonPage() {
-  const [results, setResults] = useState<ModelComparisonResult[]>(modelResults.map((result) => ({ model: result.shortName as ModelComparisonResult['model'], metrics: { hitRate: result.hitRate, missRate: 100 - result.hitRate, emitterCoverage: result.coverage, averageInterceptionDelaySeconds: result.delay, scanEntropy: result.entropy } })))
-  useEffect(() => { void api.getModelComparison().then(setResults) }, [])
+  const results = modelResults.map((result) => ({ model: result.shortName, metrics: { hitRate: result.hitRate, missRate: 100 - result.hitRate, emitterCoverage: result.coverage, averageInterceptionDelaySeconds: result.delay, scanEntropy: result.entropy } }))
 
   return (
     <div className="space-y-8">
-      <SectionHeader eyebrow="Model Comparison / Final benchmark" title="Performance trade-offs" detail="The final holdout benchmark shows different operational personalities. Smart V3 is not universal-best; it is the balanced coverage-and-delay scheduler." />
+      <SectionHeader eyebrow="REFERENCE HOLDOUT BENCHMARK" title="Historical performance trade-offs" detail="These fixed holdout results are historical reference values, not metrics from the currently uploaded scenario. Run the live Sequential vs Smart V3 comparison on the Spectrum Monitor for current-file results." />
       <p className="surface-card w-fit px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#c0bdb7]">{HOLDOUT_LABEL}</p>
 
       <div className="grid gap-5 xl:grid-cols-4">

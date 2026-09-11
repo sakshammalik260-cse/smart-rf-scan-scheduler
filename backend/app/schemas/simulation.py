@@ -15,6 +15,8 @@ class ScanHistoryItem(BaseModel):
     simulation_time_seconds: float
     dwell_duration_seconds: float
     band_id: int
+    frequency_start_mhz: float
+    frequency_end_mhz: float
     outcome: Literal["HIT", "MISS"]
     pulse_count_observed: int
     rf_probability: float

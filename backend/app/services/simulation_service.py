@@ -119,7 +119,7 @@ class SimulationSession:
         observed = inference_service.tsrd.observe_band(self.indexes, selected, self.current_time_s, end_time)
         hit = bool(observed["hit"])
         self.selected_band = selected
-        self.scan_history.append(ScanHistoryItem(decision_number=self.decision_count, simulation_time_seconds=float(self.current_time_s), dwell_duration_seconds=float(end_time - self.current_time_s), band_id=selected, outcome="HIT" if hit else "MISS", pulse_count_observed=int(observed["pulse_count"]), rf_probability=float(self.latest_probabilities[selected]), v3_score=score))
+        self.scan_history.append(ScanHistoryItem(decision_number=self.decision_count, simulation_time_seconds=float(self.current_time_s), dwell_duration_seconds=float(end_time - self.current_time_s), band_id=selected, frequency_start_mhz=float(self.scenario.receiver_plan.lows_mhz[selected]), frequency_end_mhz=float(self.scenario.receiver_plan.highs_mhz[selected]), outcome="HIT" if hit else "MISS", pulse_count_observed=int(observed["pulse_count"]), rf_probability=float(self.latest_probabilities[selected]), v3_score=score))
         inference_service.features.update_observable_history(self.histories[selected], self.current_time_s, hit, int(observed["pulse_count"]), float(self.memory_s))
         self.recent_selected_bands.append(selected)
         self.previous_scan_was_hit = 1 if hit else 0

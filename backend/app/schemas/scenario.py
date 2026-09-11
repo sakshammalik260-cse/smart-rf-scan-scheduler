@@ -1,12 +1,23 @@
 from pydantic import BaseModel
 
 
+class ReceiverPlanSummary(BaseModel):
+    band_count: int
+    bandwidth_mhz: float
+    centres_mhz: list[float]
+    dwell_times_seconds: list[float]
+    source: str
+
+
 class ScenarioUploadResponse(BaseModel):
     scenario_id: str
     filename: str
+    sha256: str
     valid: bool
     receiver_mode: str | None
     pulse_count: int | None
+    duration_seconds: float
+    receiver_plan: ReceiverPlanSummary
     unique_emitter_count: int | None
     feature_names: list[str]
     frequency_min: float | None
